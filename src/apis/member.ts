@@ -95,3 +95,8 @@ export const deleteWallpaper = async () => {
   const response = await authInstance.delete(`/members/wallpaper`);
   return response.data;
 };
+
+export const deleteUser = async () => {
+  const response = await authInstance.delete(`/members`);
+  return response.data;
+};

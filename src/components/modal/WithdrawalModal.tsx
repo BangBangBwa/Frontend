@@ -1,5 +1,9 @@
 import React from 'react';
 
+import { useDeleteUser } from '@/hooks/queries/members';
+import { useAuth } from '@/stores/useAuth';
+import { removeItem } from '@/utils/localStorage';
+
 import { ModalProps } from './modal.interface';
 import { css } from '../../../styled-system/css';
 import { flex } from '../../../styled-system/patterns';
@@ -7,8 +11,12 @@ import Button from '../common/Button';
 import Modal from '../common/Modal';
 
 const WithdrawalModal = ({ onClose }: ModalProps) => {
-  const handleWithdrawal = () => {
-    // TODO: 탈퇴 만들기
+  const { mutate: deleteUser } = useDeleteUser();
+
+  const handleDeleteUser = () => {
+    deleteUser();
+    removeItem('auth-storage');
+    window.location.href = '/';
   };
 
   return (
@@ -86,7 +94,7 @@ const WithdrawalModal = ({ onClose }: ModalProps) => {
             variant="contained"
             text="탈퇴"
             className={css({ flex: 1 })}
-            onClick={handleWithdrawal}
+            onClick={handleDeleteUser}
           />
         </div>
       </div>

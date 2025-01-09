@@ -8,6 +8,7 @@ import {
 import {
   addWallpapaer,
   checkIdMatch,
+  deleteUser,
   deleteWallpaper,
   getComments,
   getFollowers,
@@ -244,5 +245,11 @@ export const useAddWallpaper = () => {
 export const useDeleteWallpaper = () => {
   return useMutation({
     mutationFn: deleteWallpaper,
+  });
+};
+
+export const useDeleteUser = () => {
+  return useMutation({
+    mutationFn: deleteUser,
   });
 };
