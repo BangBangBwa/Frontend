@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import { useRouter } from 'next/router';
+import React, { ChangeEvent, useEffect, useRef, useState } from 'react';
 
+import Icon from '@/components/common/Icon';
 import AccountUpdateModal from '@/components/modal/AccountUpdateModal';
 import ShowFollowersModal from '@/components/modal/ShowFollowersModal';
 import WithdrawalModal from '@/components/modal/WithdrawalModal';
@@ -8,9 +10,11 @@ import Content from '@/components/mypage/Content';
 import InfoBox from '@/components/mypage/InfoBox';
 import { useModal } from '@/hooks/useModal';
 import { useMyPage } from '@/hooks/useMyPage';
+import { useAuth } from '@/stores/useAuth';
+import { useCheckMyPage } from '@/stores/useCheckMyPage';
 
-import { css } from '../../styled-system/css';
-import { center, flex, vstack } from '../../styled-system/patterns';
+import { css } from '../../../styled-system/css';
+import { center, flex, vstack } from '../../../styled-system/patterns';
 
 export type ArticleType = 'image' | 'video' | 'mixed' | undefined;
 
@@ -18,19 +22,43 @@ type FollowerModalType = 'following' | 'follower' | null;
 type ModalTypes = 'followers' | 'accountUpdate' | 'withdrawal';
 
 const MyPage = () => {
-  const MEMBER_ID = '1';
+  const router = useRouter();
+  const { id } = router.query;
 
-  const { activeModal, openModal, closeModal } = useModal<ModalTypes>();
-  const { isMyPage } = useMyPage({
-    memberId: MEMBER_ID,
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const { isMyPage, setIsMyPage, setMemberId } = useCheckMyPage();
+  const { addWallpaper, deleteWallpaper, profileInfo } = useMyPage({
+    memberId: String(id),
   });
+  const { activeModal, openModal, closeModal } = useModal<ModalTypes>();
+
   const [followerModalType, setFollowerModalType] =
     useState<FollowerModalType>(null);
+  const [image, setImage] = useState<File>(profileInfo?.coverImage as File);
+
+  useEffect(() => {
+    if (id) {
+      setIsMyPage(false);
+      setMemberId(String(id));
+    } else {
+      setIsMyPage(true);
+      setMemberId(String(useAuth.getState().memberId));
+    }
+  }, [id]);
+
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImage(file);
+      addWallpaper({ file });
+    }
+  };
 
   return (
     <>
       {activeModal === 'followers' && (
-        <ShowFollowersModal onClose={close} type={followerModalType} />
+        <ShowFollowersModal onClose={closeModal} type={followerModalType} />
       )}
       {activeModal === 'accountUpdate' && (
         <AccountUpdateModal onClose={closeModal} />
@@ -38,23 +66,50 @@ const MyPage = () => {
       {activeModal === 'withdrawal' && <WithdrawalModal onClose={closeModal} />}
       <div className={styles.container}>
         <div className={styles.banner}>
-          <img
-            src={''}
-            alt=""
-            style={{ width: 'inherit', height: 'inherit', objectFit: 'cover' }}
+          {image ? (
+            <img
+              src={URL.createObjectURL(image)}
+              alt="cover image"
+              style={{
+                width: 'inherit',
+                height: 'inherit',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <div
+              className={css({
+                backgroundColor: 'main.light2',
+                height: '100%',
+              })}
+            />
+          )}
+          <button
+            className={styles.add_image}
+            onClick={() => inputRef?.current?.click()}
+            type="button"
+          >
+            <Icon
+              name={`camera-circle${profileInfo?.coverImage ? '' : '-dark'}`}
+            />
+          </button>
+          <input
+            type="file"
+            ref={inputRef}
+            onChange={handleImageChange}
+            hidden
           />
         </div>
 
         <div className={styles.info}>
-          <InfoBox memberId={MEMBER_ID} />
+          <InfoBox />
           <ActivityBox
             onSetFollowerModalType={setFollowerModalType}
             openFollowersModal={() => openModal('followers')}
             openAccountUpdate={() => openModal('accountUpdate')}
-            memberId={MEMBER_ID}
           />
         </div>
-        <Content memberId={MEMBER_ID} />
+        <Content />
         {isMyPage && (
           <div className={styles.withdrawal}>
             <button onClick={() => openModal('withdrawal')}>회원 탈퇴</button>
@@ -80,7 +135,7 @@ const styles = {
     right: 0,
     top: 0,
     marginTop: '70px',
-    zIndex: -1,
+    zIndex: 0,
   }),
   info: flex({
     position: 'absoltue',
@@ -143,5 +198,15 @@ const styles = {
     textAlign: 'center',
     textStyle: 'button2',
     color: 'gray.300',
+  }),
+  add_image: css({
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    cursor: 'pointer',
+    zIndex: 2,
+    background: 'none',
+    border: 'none',
+    padding: 0,
   }),
 };

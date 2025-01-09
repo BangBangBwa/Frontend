@@ -1,12 +1,13 @@
 import Image from 'next/image';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { KeyboardEvent, useEffect, useState } from 'react';
 
 import Icon from '@/components/common/Icon';
 import Input from '@/components/common/Input';
 import ProfileImage from '@/components/common/ProfileImage';
-import { ProfileInfo } from '@/hooks/queries/members';
+import { ProfileInfo, useGetTagDropdown } from '@/hooks/queries/members';
 import { useModal } from '@/hooks/useModal';
 import { useMyPage } from '@/hooks/useMyPage';
+import { useCheckMyPage } from '@/stores/useCheckMyPage';
 import { useEditMyPage } from '@/stores/useEditMyPage';
 
 import { css, cx } from '../../../styled-system/css';
@@ -14,29 +15,57 @@ import { center, flex } from '../../../styled-system/patterns';
 import Button from '../common/Button';
 import Dropdown from '../common/Dropdown';
 
-interface IProps {
-  memberId: string;
-}
+const InfoBox = () => {
+  const { isMyPage, memberId } = useCheckMyPage();
+  const { profileInfo, updateProfile, toggleFollow } = useMyPage({
+    memberId: String(memberId),
+  });
 
-const InfoBox = ({ memberId }: IProps) => {
-  const { isMyPage, profileInfo } = useMyPage({ memberId });
   const { isEditing, setIsEditing } = useEditMyPage();
   const { isOpen, openModal, closeModal } = useModal();
 
-  const [inputs, setInputs] = useState<ProfileInfo>({
-    imageUrl: '',
-    nickName: '김철수',
-    selfIntroduction:
-      '안녕하세요 전세계를 돌아다니며 맛집을 찾아다니는 BJ 김철수입니다~~안녕하세요 전세계를 돌아다니며 맛집을 찾아다니는 BJ 김철수입니다~~',
-    interests: ['뉴욕맛집', '미국여행', '자동차'],
-    isFollowing: false,
-  });
+  const [inputs, setInputs] = useState<
+    Omit<ProfileInfo, 'imageUrl'> & { imageUrl: string | File }
+  >(profileInfo!);
   const [inputWidth, setInputWidth] = useState(1);
   const [newTag, setNewTag] = useState('');
 
-  const handleUpdateProfile = () => setIsEditing(false);
+  const { data: tagsToSearch, refetch } = useGetTagDropdown(newTag);
 
-  const data = profileInfo || inputs;
+  useEffect(() => {
+    refetch();
+  }, [newTag]);
+
+  useEffect(() => {
+    if (profileInfo?.nickname) {
+      setInputs({
+        ...profileInfo,
+        tags: profileInfo.tags ?? [],
+        imageUrl: profileInfo.imageUrl,
+      });
+    }
+  }, [profileInfo]);
+
+  const handleUpdateProfile = () => {
+    const request = {
+      nickname: inputs?.nickname,
+      selfIntroduction: inputs?.selfIntroduction,
+      tagList: inputs?.tags,
+    };
+
+    const formData = new FormData();
+    formData.append('file', inputs?.imageUrl);
+    formData.append('request', JSON.stringify(request));
+
+    updateProfile({
+      data: formData,
+      successHandler: () => setIsEditing(false),
+    });
+  };
+
+  const handleTagDelete = (value: string) => {
+    setInputs({ ...inputs, tags: inputs.tags.filter((tag) => tag !== value) });
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewTag(e.target.value);
@@ -75,17 +104,35 @@ const InfoBox = ({ memberId }: IProps) => {
     }
   };
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newTag.trim() && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      setInputs({
+        ...inputs,
+        tags: [...inputs.tags, newTag.trim()],
+      });
+      setNewTag('');
+    }
+  };
+
+  const handleFollow = () => {
+    toggleFollow({
+      isFollow: !inputs?.isFollowing,
+    });
+  };
+
   return (
     <div className={styles.info_box}>
       {isEditing ? (
         <ProfileImage
-          setFile={(file) => setInputs({ ...inputs, imageUrl: String(file) })}
+          setFile={(file) => setInputs({ ...inputs, imageUrl: file })}
+          initialValue={profileInfo?.imageUrl as string}
         />
       ) : (
         <div className={cx(styles.profile_wrap, center())}>
-          {data?.imageUrl ? (
+          {inputs?.imageUrl ? (
             <Image
-              src={data?.imageUrl as string}
+              src={inputs?.imageUrl as string}
               alt=""
               width={120}
               height={120}
@@ -102,21 +149,22 @@ const InfoBox = ({ memberId }: IProps) => {
           {isEditing ? (
             <div style={{ height: '37px', marginBottom: '8px' }}>
               <Input
-                value={inputs.nickName}
+                value={inputs?.nickname}
                 onSetValue={(name) => {
-                  setInputs({ ...inputs, nickName: name });
+                  setInputs({ ...inputs, nickname: name });
                 }}
                 className={styles.name_input}
               />
             </div>
           ) : (
-            <span>{data?.nickName}</span>
+            <span>{inputs?.nickname}</span>
           )}
           {!isMyPage && (
             <Button
               className={styles.follow_btn}
-              variant={data?.isFollowing ? 'outlined' : 'contained'}
-              text={data?.isFollowing ? '팔로우 취소' : '팔로우'}
+              variant={inputs?.isFollowing ? 'outlined' : 'contained'}
+              text={inputs?.isFollowing ? '팔로우 취소' : '팔로우'}
+              onClick={handleFollow}
             />
           )}
         </div>
@@ -124,13 +172,21 @@ const InfoBox = ({ memberId }: IProps) => {
           {isEditing ? (
             <textarea
               className={cx(styles.description, styles.textarea)}
-              value={inputs.selfIntroduction}
+              value={inputs?.selfIntroduction ?? ''}
               onChange={(e) =>
                 setInputs({ ...inputs, selfIntroduction: e.target.value })
               }
             />
           ) : (
-            <span className={styles.description}>{data?.selfIntroduction}</span>
+            <span
+              className={cx(
+                styles.description,
+                !inputs?.selfIntroduction &&
+                  css({ fontSize: '15px', color: 'gray.400' })
+              )}
+            >
+              {inputs?.selfIntroduction || '소개글을 작성해주세요.'}
+            </span>
           )}
         </div>
         <div
@@ -139,13 +195,14 @@ const InfoBox = ({ memberId }: IProps) => {
             css({ marginTop: isEditing ? '0.5px' : '12px' })
           )}
         >
-          {data?.interests.map((tag) => (
+          {inputs?.tags?.map((tag) => (
             <button
               className={cx(
                 styles.tag,
                 isEditing ? styles.edit_tag : styles.default_tag
               )}
               key={tag}
+              onClick={() => handleTagDelete(tag)}
             >
               {tag}
               {isEditing && (
@@ -164,18 +221,19 @@ const InfoBox = ({ memberId }: IProps) => {
                   value={newTag}
                   onChange={handleInputChange}
                   onFocus={handleInputFocus}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
               {isOpen && (
                 <Dropdown
                   className={styles.dropdown}
-                  tags={['tag1', 'tag2', 'tag3', 'tag4']}
+                  tags={tagsToSearch?.data.tagList ?? []}
                   keyword={newTag}
                   setValue={(value) => {
                     setNewTag(value);
                     setInputs({
                       ...inputs,
-                      interests: [...inputs.interests, newTag],
+                      tags: [...inputs.tags, newTag],
                     });
                     setNewTag('');
                   }}

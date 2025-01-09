@@ -11,31 +11,87 @@ export const checkIdMatch = async (memberId: string) => {
 };
 
 export const getProfileSummary = async (memberId: string) => {
-  const response = await authInstance.get(`/summary/${memberId}`);
-  return response.data;
+  const response = await authInstance.get(`/members/summary/${memberId}`);
+  return response.data.data;
 };
 
 export const getProfileInfo = async (memberId: string) => {
-  const response = await authInstance.get(`/profile/${memberId}`);
-  return response.data;
+  const response = await authInstance.get(`/members/profile/${memberId}`);
+  return response.data.data;
 };
 
 export const getPostList = async (memberId: string) => {
-  const response = await authInstance.get(`/posts/${memberId}`);
-  return response.data;
+  const response = await authInstance.get(`/members/posts/${memberId}`);
+  return response.data.data;
 };
 
 export const getFollowers = async (memberId: string) => {
   const response = await authInstance.get(`/members/followers/${memberId}`);
-  return response.data;
+  return response.data.data;
+};
+
+export const getFollows = async (memberId: string) => {
+  const response = await authInstance.get(`/members/follows/${memberId}`);
+  return response.data.data;
 };
 
 export const getComments = async (memberId: string) => {
   const response = await authInstance.get(`/members/comments/${memberId}`);
-  return response.data;
+  return response.data.data;
 };
 
 export const postFollow = async (data: IPostFollowReq) => {
   const response = await authInstance.post('/members/toggleFollow', data);
+  return response.data.data;
+};
+
+export const promoteStreamer = async (platformUrl: string) => {
+  const response = await authInstance.post(`/members/promoteStreamer`, {
+    platformUrl,
+  });
+  return response.data;
+};
+
+export interface ProfileUpdateRequest {
+  nickname: string;
+  selfIntroduction: string;
+  tagList: string[];
+}
+
+export const updateMemberInfo = async ({ data }: { data: FormData }) => {
+  const response = await authInstance.put(`/members`, data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const toggleFollow = async ({
+  memberId,
+  isFollow,
+}: {
+  memberId: number;
+  isFollow: boolean;
+}) => {
+  const response = await authInstance.post(`/members/toggleFollow`, {
+    memberId,
+    isFollow,
+  });
+  return response.data;
+};
+
+export const getTags = async (keyword: string) => {
+  const response = await authInstance.get(`/tags?tagWord=${keyword}`);
+  return response.data;
+};
+
+export const addWallpapaer = async (file: File) => {
+  const response = await authInstance.put(`/members/wallpaper`, file);
+  return response.data;
+};
+
+export const deleteWallpaper = async () => {
+  const response = await authInstance.delete(`/members/wallpaper`);
   return response.data;
 };

@@ -1,87 +1,30 @@
 import Image from 'next/image';
-import React, { useState } from 'react';
 
-import { CommentInfo, PostInfo } from '@/hooks/queries/members';
 import { useMyPage } from '@/hooks/useMyPage';
+import { useTab } from '@/hooks/useTab';
+import { useCheckMyPage } from '@/stores/useCheckMyPage';
 
 import ArticleBox from './ArticleBox';
 import CommentBox from './CommentBox';
 import { css, cx } from '../../../styled-system/css';
 import { center, flex, wrap } from '../../../styled-system/patterns';
 
-const articleList: PostInfo[] = [
-  {
-    postId: 1,
-    title: '게시물1',
-    createdDate: '2024.11.01',
-    hasImage: true,
-    hasVideo: false,
-    isPinned: true,
-    content: '내용1',
-  },
-  {
-    postId: 2,
-    title: '게시물2',
-    createdDate: '2024.11.01',
-    hasImage: false,
-    hasVideo: true,
-    isPinned: true,
-    content: '내용2',
-  },
-  {
-    postId: 3,
-    title: '게시물3',
-    createdDate: '2024.11.01',
-    hasImage: true,
-    hasVideo: true,
-    isPinned: true,
-    content: '내용3',
-  },
-];
-
-const commentList: CommentInfo[] = [
-  {
-    commentId: 1,
-    replyCommentId: 1,
-    content: '이것이 바로 댓글 1',
-    replyContent: '',
-  },
-  {
-    commentId: 2,
-    replyCommentId: 1,
-    content: '댓글2',
-    replyContent: '대댓글 드립니다',
-  },
-  {
-    commentId: 3,
-    replyCommentId: 1,
-    content: '이것이 바로 댓글 3',
-    replyContent: '',
-  },
-];
-
 const TAB = {
   ARTICLES: '내 게시물',
   COMMENTS: '내가 쓴 댓글',
 } as const;
 
-interface IProps {
-  memberId: string;
-}
+const Content = () => {
+  const { isMyPage, memberId } = useCheckMyPage();
+  const { posts, comments } = useMyPage({
+    memberId: String(memberId),
+  });
+  const { activeTab, isActive, handleTabChange } = useTab({
+    tabs: Object.values(TAB),
+    initialValue: '내가 쓴 댓글',
+  });
 
-const Content = ({ memberId }: IProps) => {
-  const { isMyPage /*posts, comments*/ } = useMyPage({ memberId });
-  const [currentItem, setCurrentItem] = useState('내가 쓴 댓글');
-
-  const posts = {
-    postInfos: articleList,
-  };
-
-  const comments = {
-    comments: commentList,
-  };
-
-  if (!articleList) {
+  if (!posts?.length) {
     return (
       <div className={styles.wrapper}>
         <Image
@@ -94,20 +37,18 @@ const Content = ({ memberId }: IProps) => {
     );
   }
 
-  const handleSelectItem = (value: string) => setCurrentItem(value);
-
   return (
     <>
       {isMyPage ? (
         <div>
           <div className={cx(styles.title_box, flex({ gap: '20px' }))}>
             {['내가 쓴 댓글', '내 게시물'].map((item) => (
-              <button key={item} onClick={() => handleSelectItem(item)}>
+              <button key={item} onClick={() => handleTabChange(item)}>
                 <p
                   className={cx(
                     styles.article_title,
                     css({
-                      color: currentItem === item ? 'main.base' : 'gray.300',
+                      color: isActive(item) ? '#7C0DE4' : '#d9d9d9',
                     })
                   )}
                 >
@@ -116,17 +57,17 @@ const Content = ({ memberId }: IProps) => {
               </button>
             ))}
           </div>
-          {currentItem === TAB.ARTICLES && (
+          {activeTab === TAB.ARTICLES && (
             <div className={wrap({ gap: '20px' })}>
-              {posts?.postInfos?.map((article) => (
-                <ArticleBox key={article.title} {...article} />
+              {posts?.map((article) => (
+                <ArticleBox key={article.postId} {...article} />
               ))}
             </div>
           )}
-          {currentItem === TAB.COMMENTS && (
+          {activeTab === TAB.COMMENTS && (
             <div className={wrap({ gap: '20px' })}>
-              {comments?.comments.map((comment) => (
-                <CommentBox key={comment.content} {...comment} />
+              {comments?.map((comment) => (
+                <CommentBox key={comment.commentInfo.commentId} {...comment} />
               ))}
             </div>
           )}
@@ -135,12 +76,12 @@ const Content = ({ memberId }: IProps) => {
         <div>
           <div className={styles.title_box}>
             <p className={cx(styles.article_title, css({ cursor: 'default' }))}>
-              게시글 ({articleList.length})
+              게시글 ({posts.length})
             </p>
           </div>
-          <div className={wrap({ justifyContent: 'space-between' })}>
-            {articleList.map((article) => (
-              <ArticleBox key={article.title} {...article} />
+          <div className={styles.article_wrap}>
+            {posts?.map((article) => (
+              <ArticleBox key={article.postId} {...article} />
             ))}
           </div>
         </div>
@@ -169,5 +110,6 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     rowGap: '20px',
+    columnGap: '20px',
   }),
 };

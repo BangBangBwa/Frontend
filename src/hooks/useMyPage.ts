@@ -1,10 +1,15 @@
 import {
+  useAddWallpaper,
+  useDeleteWallpaper,
   useGetComments,
   useGetFollowers,
+  useGetFollows,
   useGetPosts,
-  useIsMyMemberId,
   useProfileInfo,
   useProfileSummary,
+  usePromoteStreamer,
+  useToggleFollow,
+  useUpdateProfileInfo,
 } from './queries/members';
 
 interface IProps {
@@ -12,19 +17,46 @@ interface IProps {
 }
 
 export const useMyPage = ({ memberId }: IProps) => {
-  const { data: isMyPage } = useIsMyMemberId(memberId);
-  const { data: profileSummary } = useProfileSummary(memberId, isMyPage);
-  const { data: profileInfo } = useProfileInfo(memberId, isMyPage);
-  const { data: posts } = useGetPosts(memberId, isMyPage);
-  const { data: comments } = useGetComments(memberId, isMyPage);
-  const { data: followers } = useGetFollowers(memberId, isMyPage);
+  const { data: profileSummary } = useProfileSummary(memberId);
+  const { data: profileInfo } = useProfileInfo(memberId);
+  const { data: posts } = useGetPosts(memberId);
+  const { data: comments } = useGetComments(memberId);
+  const { data: followers } = useGetFollowers(memberId);
+  const { data: follows } = useGetFollows(memberId);
+
+  const { mutate: requestUpdate } = usePromoteStreamer(memberId);
+  const { mutate: updateProfile } = useUpdateProfileInfo(memberId);
+  const { mutate: toggleFollow } = useToggleFollow(memberId);
+
+  const { mutate: addWallpaper } = useAddWallpaper();
+  const { mutate: deleteWallpaper } = useDeleteWallpaper();
+
+  const handleUpdateProfile = ({
+    data,
+    successHandler,
+  }: {
+    data: FormData;
+    successHandler: () => void;
+  }) => {
+    updateProfile(
+      { data },
+      {
+        onSuccess: successHandler,
+      }
+    );
+  };
 
   return {
-    isMyPage: true,
     profileSummary,
     profileInfo,
-    posts,
-    comments,
-    followers,
+    posts: posts?.postInfos,
+    comments: comments?.comments,
+    followers: followers?.followers,
+    follows: follows?.follows,
+    requestUpdate,
+    updateProfile: handleUpdateProfile,
+    toggleFollow,
+    deleteWallpaper,
+    addWallpaper,
   };
 };
